@@ -1,0 +1,12 @@
+[submodule "graph-aggregator"]
+	path = graph-aggregator
+	url = git@github.com:mindwingx/graph-aggregator.git
+[submodule "graph-coordinator"]
+	path = graph-coordinator
+	url = git@github.com:mindwingx/graph-coordinator.git
+[submodule "graph-generator"]
+	path = graph-generator
+	url = git@github.com:mindwingx/graph-generator.git
+[submodule "graph-processor"]
+	path = graph-processor
+	url = git@github.com:mindwingx/graph-processor.git
