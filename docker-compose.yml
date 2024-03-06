@@ -1,0 +1,132 @@
+version: "3.8"
+
+services:
+  aggregator:
+    container_name: aggregator
+    build:
+      context: .
+      dockerfile: aggregator.dockerfile
+    restart: on-failure
+    ports:
+      - "9990:9990"
+    volumes:
+      - "./zap-logs:/app/logs"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - database
+      - kafka
+      - processor
+    networks:
+      - graph_net
+
+  coordinator:
+    container_name: coordinator
+    build:
+      context: .
+      dockerfile: coordinator.dockerfile
+    restart: on-failure
+    ports:
+      - "8880:8880"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - aggregator
+    networks:
+      - graph_net
+
+  generator:
+    container_name: generator
+    build:
+      context: .
+      dockerfile: generator.dockerfile
+#    restart: always
+    tty: true
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - coordinator
+    networks:
+      - graph_net
+
+  processor:
+    container_name: processor
+    build:
+      context: .
+      dockerfile: processor.dockerfile
+    restart: on-failure
+    ports:
+      - "9991:9991"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - kafka
+    networks:
+      - graph_net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: graph-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    networks:
+      - graph_net
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: service_kafka
+    restart: always
+    depends_on:
+      - zookeeper
+      - database
+#    ports:
+#      - "29092:29092"
+    expose:
+      - "9092"
+#      - "29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://service_kafka:9092
+#      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://service_kafka:9092,PLAINTEXT_HOST://127.0.0.1:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - graph_net
+
+  database:
+    container_name: service_database
+    image: mysql:latest
+    ports:
+      - "33069:3306"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      MYSQL_DATABASE: "transactional_outbox_messages"
+      MYSQL_ROOT_PASSWORD: "secret-pw"
+      MYSQL_USER: "nex"
+      MYSQL_PASSWORD: "pass"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - graph_net
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  graph_net:
+    driver: bridge
