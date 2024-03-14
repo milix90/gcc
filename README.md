@@ -1,6 +1,6 @@
 ## Code Challenge
 
-This service containers 4 modules. They comply with the order below:
+This service contains 4 modules. They comply with the order below:
 
 1. generator module: prepare messages and send by HTTP request(up to 10k)
 2. coordinator module: receives requests by API and hands over them to the web socket connection
